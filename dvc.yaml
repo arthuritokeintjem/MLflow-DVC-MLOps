@@ -1,0 +1,38 @@
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+      - src/preprocess.py
+      - data/raw/iris.csv
+      - params.yaml
+    outs:
+      - data/processed
+
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - data/processed
+      - params.yaml
+    outs:
+      - models/model.pkl
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - models/model.pkl
+      - data/processed
+      - params.yaml
+    outs:
+      - reports/metrics.json
+      - reports/confusion_matrix.png
+
+  report:
+    cmd: python src/report.py
+    deps:
+      - src/report.py
+      - reports/metrics.json
+      - reports/confusion_matrix.png
+    outs:
+      - reports/public
