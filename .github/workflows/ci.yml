@@ -1,0 +1,56 @@
+name: CI with DVC + MLflow
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          dvc --version
+          mlflow --version
+
+      # 1) Materialize dataset dari DVC (penting)
+      - name: DVC pull (materialize iris.csv)
+        run: |
+          dvc pull -v || true
+          # fallback kalau DVC tidak punya sumber/remote:
+          if [ ! -f data/raw/iris.csv ]; then
+            echo "iris.csv not found after dvc pull — fallback to direct download"
+            mkdir -p data/raw
+            curl -L -o data/raw/iris.csv https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv
+          fi
+          ls -lah data/raw || true
+          test -f data/raw/iris.csv
+
+      # 2) Run pipeline
+      - name: Reproduce DVC pipeline
+        run: dvc repro -v
+
+      # 3) Upload artefak (opsional tapi berguna)
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-report
+          path: reports/public
+
+      - name: Upload MLflow runs
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-runs
+          path: mlruns/
